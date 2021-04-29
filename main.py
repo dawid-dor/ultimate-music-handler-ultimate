@@ -2,7 +2,7 @@
 import sys
 import os
 import threading
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
 
 # UI Modules Imports
 import modules.main_widnow as main_menu
@@ -12,6 +12,9 @@ import modules.song_cutter as song_cutter
 
 # Youtube Downloader Imports
 import youtube_dl
+
+# Metadata Changer Imports
+import eyed3
 
 MUSIC_FOLDER = "H:/MuzykaYT"
 
@@ -107,6 +110,64 @@ class Metadata_Changer(QtWidgets.QMainWindow, metadata_changer.Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
         self.metadataMenuButton.clicked.connect(self.hide)
+        self.metadataCoverCheck.setChecked(True)
+        self.metadataChangeButton.setDisabled(True)
+        self.song_file = ""
+        # Populate songs
+        self.fileModel = QtWidgets.QFileSystemModel(self)
+        self.fileModel.setRootPath(MUSIC_FOLDER)
+        self.metadataList.setModel(self.fileModel)
+        self.metadataList.setRootIndex(self.fileModel.index(MUSIC_FOLDER))
+        # Fire up when clicking on the list item
+        self.metadataList.selectionModel().selectionChanged.connect(
+            self.metadata_song_clicked
+        )
+        # Fire up when clicking the change button
+        self.metadataChangeButton.clicked.connect(self.change_metadata)
+
+    def metadata_song_clicked(self):
+        # Enable the change button
+        self.metadataChangeButton.setDisabled(False)
+        # Get clicked song path and file itself
+        song_file_name = self.metadataList.currentIndex().data()
+        song_path = "{}/{}".format(MUSIC_FOLDER, song_file_name)
+        self.song_file = eyed3.load(song_path)
+        # Set form fields to songs's current metadata
+        current_name = self.song_file.tag.title
+        current_artist = self.song_file.tag.artist
+        current_album = self.song_file.tag.album
+        self.metadataName.setText(current_name)
+        self.metadataArtist.setText(current_artist)
+        self.metadataAlbum.setText(current_album)
+
+    def change_metadata(self):
+        # Get values from the form
+        new_name = self.metadataName.text()
+        new_artist = self.metadataArtist.text()
+        new_album = self.metadataAlbum.text()
+
+        # Change values in the file
+        self.song_file.tag.title = new_name
+        self.song_file.tag.artist = new_artist
+        self.song_file.tag.album = new_album
+
+        # Save values
+        self.song_file.tag.save()
+
+        # Display result
+        self.metadataResult.setText("Succesfully changed")
+
+        # Clear fields and results
+        self.clear_fields()
+        threading.Timer(3, self.clear_info).start()
+
+    def clear_fields(self):
+        self.metadataName.setText("")
+        self.metadataArtist.setText("")
+        self.metadataAlbum.setText("")
+
+    def clear_info(self):
+        self.metadataResult.setText("")
 
 
 # --Song Cutter --
