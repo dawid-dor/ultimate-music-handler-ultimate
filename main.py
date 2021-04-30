@@ -2,6 +2,7 @@
 import sys
 import os
 import threading
+import shutil
 from PyQt5 import QtWidgets, QtCore
 
 # UI Modules Imports
@@ -15,8 +16,10 @@ import youtube_dl
 
 # Metadata Changer Imports
 import eyed3
+from google_images_download import google_images_download # IMPORTANT FOR IMAGE DOWNLOADING: delete previous version and download this one - pip install git+https://github.com/Joeclinton1/google-images-download.git
 
 MUSIC_FOLDER = "H:/MuzykaYT"
+MUSIC_FOLDER = "C:/Users/ddor/Desktop/python/ultimate-music-handler-ultimate/downloads"
 
 # -- Main Menu --
 class UltimateMusicHandler(QtWidgets.QMainWindow, main_menu.Ui_MainWindow):
@@ -139,8 +142,13 @@ class Metadata_Changer(QtWidgets.QMainWindow, metadata_changer.Ui_MainWindow):
         self.metadataName.setText(current_name)
         self.metadataArtist.setText(current_artist)
         self.metadataAlbum.setText(current_album)
+        # Set selected song field
+        self.metadataSelectedSong.setText(song_file_name)
 
     def change_metadata(self):
+        # Set flag to monitore if cover photo was changed
+        cover_changed = False
+
         # Get values from the form
         new_name = self.metadataName.text()
         new_artist = self.metadataArtist.text()
@@ -151,15 +159,61 @@ class Metadata_Changer(QtWidgets.QMainWindow, metadata_changer.Ui_MainWindow):
         self.song_file.tag.artist = new_artist
         self.song_file.tag.album = new_album
 
+        # Check if cover field is checked - if it is then change the cover photo
+        if self.metadataCoverCheck.isChecked():
+            query = new_artist + " " + new_name
+            self.change_cover_photo(query)
+            cover_changed = True
+
         # Save values
         self.song_file.tag.save()
 
         # Display result
-        self.metadataResult.setText("Succesfully changed")
+        if not cover_changed:
+            self.metadataResult.setText("Succesfully changed")
+        else:
+            self.metadataResult.setText("Succesfully changed with cover")
 
         # Clear fields and results
         self.clear_fields()
         threading.Timer(3, self.clear_info).start()
+    
+    def change_cover_photo(self, query):
+        # Download first image from google (query is song's name and song's artist)
+        self.download_cover_photo(query)
+
+        # Set paths of the file
+        cover_image_path = '{}/{}'.format(MUSIC_FOLDER, query)
+        cover_image = os.listdir(cover_image_path)[0]
+        cover_image_full_path = '{}/{}'.format(cover_image_path, cover_image)
+
+        # Set cover image
+        self.song_file.tag.images.set(3, open('{}'.format(cover_image_full_path),'rb').read(), 'image/jpeg')
+        
+        # Delete downloaded image(folder)
+        shutil.rmtree(cover_image_path)
+    
+    def download_cover_photo(self, query):
+        response = google_images_download.googleimagesdownload() 
+        arguments = {"keywords": query,
+        "format": "jpg",
+        "limit":1,
+        "print_urls":False,
+        "size": "medium",
+        "aspect_ratio":"square"}
+        try:
+            response.download(arguments)
+        except FileNotFoundError:
+            arguments = {"keywords": query,
+            "format": "jpg",
+            "limit":1,
+            "print_urls":False, 
+            "size": "medium"}
+            try:
+                response.download(arguments)
+            except Exception:
+                pass
+                       
 
     def clear_fields(self):
         self.metadataName.setText("")
