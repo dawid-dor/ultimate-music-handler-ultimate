@@ -16,13 +16,14 @@ import youtube_dl
 
 # Metadata Changer Imports
 import eyed3
-from google_images_download import google_images_download # IMPORTANT FOR IMAGE DOWNLOADING: delete previous version and download this one - pip install git+https://github.com/Joeclinton1/google-images-download.git
+from google_images_download import (
+    google_images_download,
+)  # IMPORTANT FOR IMAGE DOWNLOADING: delete previous version and download this one - pip install git+https://github.com/Joeclinton1/google-images-download.git
 
 # Song Cutter Imports
 from mutagen.mp3 import MP3
 
 MUSIC_FOLDER = "H:/MuzykaYT"
-MUSIC_FOLDER = "C:/Users/ddor/Desktop/python/ultimate-music-handler-ultimate/downloads"
 
 # -- Main Menu --
 class UltimateMusicHandler(QtWidgets.QMainWindow, main_menu.Ui_MainWindow):
@@ -175,48 +176,58 @@ class Metadata_Changer(QtWidgets.QMainWindow, metadata_changer.Ui_MainWindow):
         if not cover_changed:
             self.metadataResult.setText("Succesfully changed")
         else:
-            self.metadataResult.setText("Succesfully changed with cover")
+            self.metadataResult.setText("Succesfully changed w/ cover")
 
         # Clear fields and results
         self.clear_fields()
         threading.Timer(3, self.clear_info).start()
-    
+
     def change_cover_photo(self, query):
         # Download first image from google (query is song's name and song's artist)
         self.download_cover_photo(query)
 
         # Set paths of the file
-        cover_image_path = '{}/{}'.format(MUSIC_FOLDER, query)
+        cover_image_path = "{}/{}".format(MUSIC_FOLDER, query)
+        print(cover_image_path)
         cover_image = os.listdir(cover_image_path)[0]
-        cover_image_full_path = '{}/{}'.format(cover_image_path, cover_image)
+        print(cover_image)
+        cover_image_full_path = "{}/{}".format(cover_image_path, cover_image)
 
         # Set cover image
-        self.song_file.tag.images.set(3, open('{}'.format(cover_image_full_path),'rb').read(), 'image/jpeg')
-        
+        self.song_file.tag.images.set(
+            3, open("{}".format(cover_image_full_path), "rb").read(), "image/jpeg"
+        )
+        self.song_file.tag.save(version=eyed3.id3.ID3_V2_3)
+
         # Delete downloaded image(folder)
         shutil.rmtree(cover_image_path)
-    
+
     def download_cover_photo(self, query):
-        response = google_images_download.googleimagesdownload() 
-        arguments = {"keywords": query,
-        "format": "jpg",
-        "limit":1,
-        "print_urls":False,
-        "size": "medium",
-        "aspect_ratio":"square"}
+        response = google_images_download.googleimagesdownload()
+        arguments = {
+            "keywords": query,
+            "output_directory": MUSIC_FOLDER,
+            "format": "jpg",
+            "limit": 1,
+            "print_urls": False,
+            "size": "medium",
+            "aspect_ratio": "square",
+        }
         try:
             response.download(arguments)
         except FileNotFoundError:
-            arguments = {"keywords": query,
-            "format": "jpg",
-            "limit":1,
-            "print_urls":False, 
-            "size": "medium"}
+            arguments = {
+                "keywords": query,
+                "output_directory": MUSIC_FOLDER,
+                "format": "jpg",
+                "limit": 1,
+                "print_urls": False,
+                "size": "medium",
+            }
             try:
                 response.download(arguments)
             except Exception:
                 pass
-                       
 
     def clear_fields(self):
         self.metadataName.setText("")
@@ -234,10 +245,10 @@ class Song_Cutter(QtWidgets.QMainWindow, song_cutter.Ui_MainWindow):
         self.setupUi(self)
         self.songCuterMenuButton.clicked.connect(self.hide)
         # Variables
-        self.song_path = ''
+        self.song_path = ""
         self.song_length = 0
-        self.song_length_seconds = ''
-        self.song_length_minutes = ''
+        self.song_length_seconds = ""
+        self.song_length_minutes = ""
         self.song_length_multiplier = 0
         # Populate songs
         self.fileModel = QtWidgets.QFileSystemModel(self)
@@ -252,14 +263,16 @@ class Song_Cutter(QtWidgets.QMainWindow, song_cutter.Ui_MainWindow):
         self.songCutterCutButton.clicked.connect(self.change_song_length)
         # Fire up when moving the start slider
         self.songCutterStartSlider.sliderMoved.connect(self.start_slider_moved)
-    
+
     def cutter_song_clicked(self):
         # Get clicked song path and file itself
         song_file_name = self.songCutterList.currentIndex().data()
         song_path = "{}/{}".format(MUSIC_FOLDER, song_file_name)
         self.song_length = self.get_song_length(song_path)
         self.length_seconds = str(self.song_length)
-        self.length_minutes = str(int(self.song_length/60)) + ':' + str(int(self.song_length%60))
+        self.length_minutes = (
+            str(int(self.song_length / 60)) + ":" + str(int(self.song_length % 60))
+        )
 
         self.songCutterEndTime.setText(self.length_minutes)
         self.songCutterSelectedSong.setText(song_file_name)
