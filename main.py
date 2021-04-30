@@ -18,6 +18,9 @@ import youtube_dl
 import eyed3
 from google_images_download import google_images_download # IMPORTANT FOR IMAGE DOWNLOADING: delete previous version and download this one - pip install git+https://github.com/Joeclinton1/google-images-download.git
 
+# Song Cutter Imports
+from mutagen.mp3 import MP3
+
 MUSIC_FOLDER = "H:/MuzykaYT"
 MUSIC_FOLDER = "C:/Users/ddor/Desktop/python/ultimate-music-handler-ultimate/downloads"
 
@@ -230,6 +233,58 @@ class Song_Cutter(QtWidgets.QMainWindow, song_cutter.Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
         self.songCuterMenuButton.clicked.connect(self.hide)
+        # Variables
+        self.song_path = ''
+        self.song_length = 0
+        self.song_length_seconds = ''
+        self.song_length_minutes = ''
+        self.song_length_multiplier = 0
+        # Populate songs
+        self.fileModel = QtWidgets.QFileSystemModel(self)
+        self.fileModel.setRootPath(MUSIC_FOLDER)
+        self.songCutterList.setModel(self.fileModel)
+        self.songCutterList.setRootIndex(self.fileModel.index(MUSIC_FOLDER))
+        # Fire up when clicking on the list item
+        self.songCutterList.selectionModel().selectionChanged.connect(
+            self.cutter_song_clicked
+        )
+        # Fire up when clicking the cut button
+        self.songCutterCutButton.clicked.connect(self.change_song_length)
+        # Fire up when moving the start slider
+        self.songCutterStartSlider.sliderMoved.connect(self.start_slider_moved)
+    
+    def cutter_song_clicked(self):
+        # Get clicked song path and file itself
+        song_file_name = self.songCutterList.currentIndex().data()
+        song_path = "{}/{}".format(MUSIC_FOLDER, song_file_name)
+        self.song_length = self.get_song_length(song_path)
+        self.length_seconds = str(self.song_length)
+        self.length_minutes = str(int(self.song_length/60)) + ':' + str(int(self.song_length%60))
+
+        self.songCutterEndTime.setText(self.length_minutes)
+        self.songCutterSelectedSong.setText(song_file_name)
+        self.songCutterResult.setText(str(self.song_length))
+
+        # Set multiplier
+        self.song_length_multiplier = self.song_length / 100
+        # Start slider options
+        self.songCutterStartSlider.setMinimum(0)
+        self.songCutterStartSlider.setMaximum(self.song_length)
+        self.songCutterStartSlider.setSingleStep(self.song_length_multiplier)
+
+    def start_slider_moved(self):
+        self.songCutterStartTime.setText(str(self.songCutterStartSlider.value()))
+
+    def change_song_length(self):
+        self.songCutterResult.setText("Cut button clicked")
+
+    def get_song_length(self, path):
+        try:
+            audio = MP3(path)
+            length = audio.info.length
+            return length
+        except:
+            return None
 
 
 def main():
