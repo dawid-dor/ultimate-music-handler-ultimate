@@ -25,6 +25,12 @@ from google_images_download import (
 from mutagen.mp3 import MP3
 from pydub import AudioSegment
 
+# TO DO
+# 1. Make music folder browsable
+# 2. Make UI cleaner
+# 3. Make py_install
+# 4. Clear all values when closing the module
+
 
 MUSIC_FOLDER = "H:/MuzykaYT"
 
@@ -199,9 +205,7 @@ class Metadata_Changer(QtWidgets.QMainWindow, metadata_changer.Ui_MainWindow):
 
         # Set paths of the file
         cover_image_path = "{}/{}".format(MUSIC_FOLDER, query)
-        print(cover_image_path)
         cover_image = os.listdir(cover_image_path)[0]
-        print(cover_image)
         cover_image_full_path = "{}/{}".format(cover_image_path, cover_image)
 
         # Set cover image
@@ -332,27 +336,29 @@ class Song_Cutter(QtWidgets.QMainWindow, song_cutter.Ui_MainWindow):
             self.song_length_end_cut_minutes * 60 * 1000
             + self.song_length_end_cut_seconds * 1000
         )
+        try:
+            # Open file and cut it
+            song = AudioSegment.from_mp3(self.song_path)
+            extract = song[start_time:end_time]
 
-        # Open file and cut it
-        song = AudioSegment.from_mp3(self.song_path)
-        extract = song[start_time:end_time]
+            # Save cut file
+            extract.export(self.song_path, format="mp3")
 
-        # Save cut file
-        extract.export(self.song_path, format="mp3")
+            # Fix file duration
+            self.fix_duration(self.song_path)
 
-        # Fix file duration
-        self.fix_duration(self.song_path)
-
-        # Display result
-        self.songCutterResult.setText("File Cut Succesfully!")
-        threading.Timer(3, self.clear_info).start()
+            # Display result
+            self.songCutterResult.setText("File Cut Succesfully!")
+            threading.Timer(3, self.clear_info).start()
+        except Exception:
+            self.songCutterResult.setText("Something went wrong.")
+            threading.Timer(3, self.clear_info).start()
 
     def clear_info(self):
         self.songCutterResult.setText("")
 
     def fix_duration(self, filepath):
         ##  Create a temporary name for the current file.
-        ##  i.e: 'sound.mp3' -> 'sound_temp.mp3'
         temp_filepath = filepath[: len(filepath) - len(".mp3")] + "_temp" + ".mp3"
 
         ##  Rename the file to the temporary name.
