@@ -62,6 +62,9 @@ class Youtube_Downloader(QtWidgets.QMainWindow, youtube_downloader.Ui_MainWindow
         super().__init__()
         self.setupUi(self)
         self.youtubeMenuButton.clicked.connect(self.hide)
+        # Tab Orders
+        self.setTabOrder(self.youtubeSongUrl, self.youtubeSongName)
+        self.setTabOrder(self.youtubeSongName, self.youtubeDownloadButton)
         self.download_folder = MUSIC_FOLDER
         # Youtube parameters
         self.ydl_opts = {
@@ -117,6 +120,11 @@ class Metadata_Changer(QtWidgets.QMainWindow, metadata_changer.Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
         self.metadataMenuButton.clicked.connect(self.hide)
+        # Tab Orders
+        self.setTabOrder(self.metadataName, self.metadataArtist)
+        self.setTabOrder(self.metadataArtist, self.metadataAlbum)
+        self.setTabOrder(self.metadataAlbum, self.metadataChangeButton)
+        # Set elements default state
         self.metadataCoverCheck.setChecked(True)
         self.metadataChangeButton.setDisabled(True)
         self.song_file = ""
@@ -244,6 +252,9 @@ class Song_Cutter(QtWidgets.QMainWindow, song_cutter.Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
         self.songCuterMenuButton.clicked.connect(self.hide)
+        # Tab Orders
+        self.setTabOrder(self.songCutterStartTimeCut, self.songCutterEndTimeCut)
+        self.setTabOrder(self.songCutterEndTimeCut, self.songCutterCutButton)
         # Variables
         self.song_path = ""
         self.song_length = 0
@@ -261,8 +272,6 @@ class Song_Cutter(QtWidgets.QMainWindow, song_cutter.Ui_MainWindow):
         )
         # Fire up when clicking the cut button
         self.songCutterCutButton.clicked.connect(self.change_song_length)
-        # Fire up when moving the start slider
-        self.songCutterStartSlider.sliderMoved.connect(self.start_slider_moved)
 
     def cutter_song_clicked(self):
         # Get clicked song path and file itself
@@ -280,13 +289,6 @@ class Song_Cutter(QtWidgets.QMainWindow, song_cutter.Ui_MainWindow):
 
         # Set multiplier
         self.song_length_multiplier = self.song_length / 100
-        # Start slider options
-        self.songCutterStartSlider.setMinimum(0)
-        self.songCutterStartSlider.setMaximum(self.song_length)
-        self.songCutterStartSlider.setSingleStep(self.song_length_multiplier)
-
-    def start_slider_moved(self):
-        self.songCutterStartTime.setText(str(self.songCutterStartSlider.value()))
 
     def change_song_length(self):
         self.songCutterResult.setText("Cut button clicked")
