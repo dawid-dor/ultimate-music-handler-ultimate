@@ -3,6 +3,7 @@ import sys
 import os
 import threading
 import shutil
+import math
 from PyQt5 import QtWidgets, QtCore
 
 # UI Modules Imports
@@ -22,6 +23,8 @@ from google_images_download import (
 
 # Song Cutter Imports
 from mutagen.mp3 import MP3
+from pydub import AudioSegment
+
 
 MUSIC_FOLDER = "H:/MuzykaYT"
 
@@ -255,12 +258,19 @@ class Song_Cutter(QtWidgets.QMainWindow, song_cutter.Ui_MainWindow):
         # Tab Orders
         self.setTabOrder(self.songCutterStartTimeCut, self.songCutterEndTimeCut)
         self.setTabOrder(self.songCutterEndTimeCut, self.songCutterCutButton)
-        # Variables
+        # Variables - global
         self.song_path = ""
         self.song_length = 0
-        self.song_length_seconds = ""
-        self.song_length_minutes = ""
-        self.song_length_multiplier = 0
+        # Variables - initial
+        self.song_length_end_minutes = 0
+        self.song_length_end_seconds = 0
+        # Variables - cut
+        self.song_length_start_input = ""
+        self.song_length_start_end = ""
+        self.song_length_start_cut_minutes = 0
+        self.song_length_start_cut_seconds = 0
+        self.song_length_end_cut_minutes = 0
+        self.song_length_end_cut_seconds = 0
         # Populate songs
         self.fileModel = QtWidgets.QFileSystemModel(self)
         self.fileModel.setRootPath(MUSIC_FOLDER)
@@ -276,22 +286,87 @@ class Song_Cutter(QtWidgets.QMainWindow, song_cutter.Ui_MainWindow):
     def cutter_song_clicked(self):
         # Get clicked song path and file itself
         song_file_name = self.songCutterList.currentIndex().data()
-        song_path = "{}/{}".format(MUSIC_FOLDER, song_file_name)
-        self.song_length = self.get_song_length(song_path)
-        self.length_seconds = str(self.song_length)
-        self.length_minutes = (
-            str(int(self.song_length / 60)) + ":" + str(int(self.song_length % 60))
+        self.song_path = "{}/{}".format(MUSIC_FOLDER, song_file_name)
+        self.songCutterSelectedSong.setText(song_file_name)
+
+        # Get song length in miliseconds
+        self.song_length = self.get_song_length(self.song_path) * 1000
+
+        # Set start time as it will be always 0:00
+        self.songCutterStartTime.setText("0:00")
+
+        # Set initial end time
+        self.song_length_end_minutes = int((self.song_length / (1000 * 60)) % 60)
+        self.song_length_end_seconds = int((self.song_length / 1000) % 60)
+
+        # Check if seconds are below 10
+        if self.song_length_end_seconds < 10:
+            self.song_length_end_seconds = "0{}".format(self.song_length_end_seconds)
+        self.songCutterEndTime.setText(
+            "{}:{}".format(self.song_length_end_minutes, self.song_length_end_seconds)
         )
 
-        self.songCutterEndTime.setText(self.length_minutes)
-        self.songCutterSelectedSong.setText(song_file_name)
-        self.songCutterResult.setText(str(self.song_length))
-
-        # Set multiplier
-        self.song_length_multiplier = self.song_length / 100
+        # Set cut fields
+        self.songCutterStartTimeCut.setText("0:00")
+        self.songCutterEndTimeCut.setText(
+            "{}:{}".format(self.song_length_end_minutes, self.song_length_end_seconds)
+        )
 
     def change_song_length(self):
-        self.songCutterResult.setText("Cut button clicked")
+        # Split user input into list
+        self.song_length_start_input = self.songCutterStartTimeCut.text().split(":")
+        self.song_length_end_input = self.songCutterEndTimeCut.text().split(":")
+
+        # Set cut variables
+        self.song_length_start_cut_minutes = int(self.song_length_start_input[0])
+        self.song_length_start_cut_seconds = int(self.song_length_start_input[1])
+        self.song_length_end_cut_minutes = int(self.song_length_end_input[0])
+        self.song_length_end_cut_seconds = int(self.song_length_end_input[1])
+
+        # Convert cut times to milliseconds
+        start_time = (
+            self.song_length_start_cut_minutes * 60 * 1000
+            + self.song_length_start_cut_seconds * 1000
+        )
+        end_time = (
+            self.song_length_end_cut_minutes * 60 * 1000
+            + self.song_length_end_cut_seconds * 1000
+        )
+
+        # Open file and cut it
+        song = AudioSegment.from_mp3(self.song_path)
+        extract = song[start_time:end_time]
+
+        # Save cut file
+        extract.export(self.song_path, format="mp3")
+
+        # Fix file duration
+        self.fix_duration(self.song_path)
+
+        # Display result
+        self.songCutterResult.setText("File Cut Succesfully!")
+        threading.Timer(3, self.clear_info).start()
+
+    def clear_info(self):
+        self.songCutterResult.setText("")
+
+    def fix_duration(self, filepath):
+        ##  Create a temporary name for the current file.
+        ##  i.e: 'sound.mp3' -> 'sound_temp.mp3'
+        temp_filepath = filepath[: len(filepath) - len(".mp3")] + "_temp" + ".mp3"
+
+        ##  Rename the file to the temporary name.
+        os.rename(filepath, temp_filepath)
+
+        ##  Run the ffmpeg command to copy this file.
+        ##  This fixes the duration and creates a new file with the original name.
+        command = (
+            'ffmpeg -v quiet -i "' + temp_filepath + '" -acodec copy "' + filepath + '"'
+        )
+        os.system(command)
+
+        ##  Remove the temporary file that had the wrong duration in its metadata.
+        os.remove(temp_filepath)
 
     def get_song_length(self, path):
         try:
